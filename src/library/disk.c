@@ -30,11 +30,13 @@ bool    disk_sanity_check(Disk *disk, size_t blocknum, const char *data);
  **/
 Disk *	disk_open(const char *path, size_t blocks) {
     Disk *disk = NULL;
-    int fd = fopen(path, "r+");
-    if(!fd) fd = fopen(path, "w+");
+    int fd = open(path, "r+");
+    if(!fd) fd = open(path, "w+");
     if(!fd) return 0;
 
-    ftruncate(fileno(fd), blocks * BLOCK_SIZE);
+    if (ftruncate(fd, blocks * BLOCK_SIZE) < 0) {
+        return 0;
+    }
 
     disk->blocks = 0;
     disk->reads = 0;
@@ -58,7 +60,7 @@ void disk_close(Disk *disk) {
     if(disk->fd) {
         printf("%zu disk block reads\n",disk->reads);
         printf("%zu disk block writes\n",disk->writes);
-        fclose(disk->fd);
+        close(disk->fd);
         disk->fd = 0;
     }
 }
@@ -82,9 +84,9 @@ void disk_close(Disk *disk) {
  **/
 ssize_t disk_read(Disk *disk, size_t block, char *data) {
     disk_sanity_check(disk, block, data);
-    fseek(disk->fd , block * BLOCK_SIZE, SEEK_SET);
+    lseek(disk->fd , block * BLOCK_SIZE, SEEK_SET);
 
-    if(fread(data, BLOCK_SIZE, 1, disk->fd) == 1) {
+    if(read(disk->fd, data, BLOCK_SIZE) == 1) {
         disk->reads++;
         return BLOCK_SIZE;
     } else {
@@ -113,9 +115,9 @@ ssize_t disk_read(Disk *disk, size_t block, char *data) {
 ssize_t disk_write(Disk *disk, size_t block, char *data) {
     disk_sanity_check(disk, block, data);
 
-    fseek(disk->fd,block * BLOCK_SIZE,SEEK_SET);
+    lseek(disk->fd,block * BLOCK_SIZE,SEEK_SET);
 
-    if(fwrite(data, BLOCK_SIZE, 1, disk->fd)==1) {
+    if(write(disk->fd, data, BLOCK_SIZE)==1) {
         disk->writes++;
         return BLOCK_SIZE;
     } else {

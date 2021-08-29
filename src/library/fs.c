@@ -1,5 +1,4 @@
 #include "../../include/sfs/fs.h"
-#include "utils.h"
 
 #include <stdio.h>
 #include <string.h>

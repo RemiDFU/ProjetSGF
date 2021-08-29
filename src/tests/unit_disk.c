@@ -1,4 +1,4 @@
-#include "include/sfs/disk.h"
+#include "sfs/disk.h"
 
 #include <assert.h>
 #include <limits.h>

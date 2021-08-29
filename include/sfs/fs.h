@@ -2,7 +2,6 @@
 #define FS_H
 
 #include "disk.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

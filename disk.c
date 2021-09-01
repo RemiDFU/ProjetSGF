@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /* Internal Prototyes */
 
@@ -30,9 +31,11 @@ bool disk_sanity_check(Disk *disk, size_t blocknum, const char *data);
 Disk *disk_open(const char *path, size_t blocks)
 {
     Disk *disk = NULL;
-    int FileDescriptor = open(path, "r+");
+    disk = malloc(blocks * sizeof(int));
+
+    int FileDescriptor = open(path, O_RDWR);
     if (!FileDescriptor)
-        FileDescriptor = open(path, "w+");
+        FileDescriptor = open(path, O_RDWR);
     if (!FileDescriptor)
         return 0;
 
@@ -65,8 +68,8 @@ void disk_close(Disk *disk)
 {
     if (disk->fd)
     {
-        printf("%d disk block reads\n", disk->reads);
-        printf("%d disk block writes\n", disk->writes);
+        printf("%ld disk block reads\n", disk->reads);
+        printf("%ld disk block writes\n", disk->writes);
         close(disk->fd);
         disk->fd = 0;
     }

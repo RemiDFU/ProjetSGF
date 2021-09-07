@@ -29,4 +29,7 @@ void exit();
 struct fs_directory rmdir_helper(struct fs_directory parent, char name[]);
 struct fs_directory rm_helper(struct fs_directory parent, char name[]);
 
+int do_copyin(const char *filename, int inumber);
+int do_copyout(int inumber, const char *filename);
+
 #endif

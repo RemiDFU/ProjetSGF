@@ -6,9 +6,6 @@
 #include <errno.h>
 #include <string.h>
 
-static int do_copyin(const char *filename, int inumber);
-static int do_copyout(int inumber, const char *filename);
-
 int main(int argc, char *argv[])
 {
     char line[1024];
@@ -156,8 +153,7 @@ int main(int argc, char *argv[])
         {
             if (args == 2)
             {
-                inumber = atoi(arg1);
-                if (!do_copyout(inumber, "/dev/stdout"))
+                if (!copyout(arg1, "/dev/stdout"))
                 {
                     printf("cat failed!\n");
                 }
@@ -171,10 +167,9 @@ int main(int argc, char *argv[])
         {
             if (args == 3)
             {
-                inumber = atoi(arg2);
-                if (do_copyin(arg1, inumber))
+                if (copyin(arg1, arg2))
                 {
-                    printf("copied file %s to inode %d\n", arg1, inumber);
+                    printf("copied file %s to inode %d\n", arg1, arg2);
                 }
                 else
                 {
@@ -183,17 +178,16 @@ int main(int argc, char *argv[])
             }
             else
             {
-                printf("use: copyin <filename> <inumber>\n");
+                printf("use: copyin <path> <filename>\n");
             }
         }
         else if (!strcmp(cmd, "copyout"))
         {
             if (args == 3)
             {
-                inumber = atoi(arg1);
-                if (do_copyout(inumber, arg2))
+                if (copyout(arg1, arg2))
                 {
-                    printf("copied inode %d to file %s\n", inumber, arg2);
+                    printf("copied inode %d to file %s\n", arg1, arg2);
                 }
                 else
                 {
@@ -202,7 +196,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                printf("use: copyout <inumber> <filename>\n");
+                printf("use: copyout <filename> <path>\n");
             }
         }
         else if (!strcmp(cmd, "bitmap"))
@@ -342,73 +336,4 @@ int main(int argc, char *argv[])
     disk_close();
 
     return 0;
-}
-
-static int do_copyin(const char *filename, int inumber)
-{
-    FILE *file;
-    int offset = 0, result, actual;
-    char buffer[16384];
-
-    file = fopen(filename, "r");
-    if (!file)
-    {
-        printf("couldn't open %s: %s\n", filename, strerror(errno));
-        return 0;
-    }
-
-    while (1)
-    {
-        result = (int)fread(buffer, 1, sizeof(buffer), file);
-        if (result <= 0)
-            break;
-        if (result > 0)
-        {
-            actual = fs_write(inumber, buffer, result, offset);
-            if (actual < 0)
-            {
-                printf("ERROR: fs_write return invalid result %d\n", actual);
-                break;
-            }
-            offset += actual;
-            if (actual != result)
-            {
-                printf("WARNING: fs_write only wrote %d bytes, not %d bytes\n", actual, result);
-                break;
-            }
-        }
-    }
-
-    printf("%d bytes copied\n", offset);
-
-    fclose(file);
-    return 1;
-}
-
-static int do_copyout(int inumber, const char *filename)
-{
-    FILE *file;
-    int offset = 0, result;
-    char buffer[16384];
-
-    file = fopen(filename, "w");
-    if (!file)
-    {
-        printf("couldn't open %s: %s\n", filename, strerror(errno));
-        return 0;
-    }
-
-    while (1)
-    {
-        result = fs_read(inumber, buffer, sizeof(buffer), offset);
-        if (result <= 0)
-            break;
-        fwrite(buffer, 1, result, file);
-        offset += result;
-    }
-
-    printf("\n%d bytes copied\n", offset);
-
-    fclose(file);
-    return 1;
 }

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
-#include <stdbool.h>
+#include <stdint.h>
 #include <math.h>
 
 #define streq(a, b) (strcmp((a), (b)) == 0)
@@ -67,7 +67,7 @@ union fs_block
 };
 
 // Internal member variables
-bool free_block[BLOCKS];
+int free_block[BLOCKS];
 int inode_counter[BLOCKS];
 int dir_counter[BLOCKS];
 struct fs_directory curr_dir;
@@ -344,7 +344,7 @@ int fs_create()
             {
 
                 // if the inode is invalid, we can fill the space safely
-                inode.isvalid = true;
+                inode.isvalid = 1;
                 inode.size = 0;
                 memset(inode.direct, 0, sizeof(inode.direct));
                 inode.indirect = 0;
@@ -719,7 +719,7 @@ int fs_touch(char name[NAMESIZE])
     if (new_node_idx == -1)
     {
         printf("Error creating new inode\n");
-        return false;
+        return 0;
     }
 
     struct fs_directory temp = fs_add_dir_entry(curr_dir, new_node_idx, 1, name);
@@ -812,7 +812,11 @@ int fs_mkdir(char name[NAMESIZE])
         if (block.directories[offset].isvalid == 0)
             break;
 
-    if(offset == DIR_PER_BLOCK) {printf("Error in creating directory.\n"); return -1;}
+    if (offset == DIR_PER_BLOCK)
+    {
+        printf("Error in creating directory.\n");
+        return -1;
+    }
 
     struct fs_directory new_dir, temp;
     memset(&new_dir, 0, sizeof(struct fs_directory));
@@ -822,13 +826,21 @@ int fs_mkdir(char name[NAMESIZE])
 
     char tstr1[] = ".", tstr2[] = "..";
     temp = new_dir;
-    temp = fs_add_dir_entry(temp,temp.inum,0,tstr1);
-    temp = fs_add_dir_entry(temp,curr_dir.inum,0,tstr2);
-    if(temp.isvalid == 0){printf("Error creating new directory\n"); return false;}
+    temp = fs_add_dir_entry(temp, temp.inum, 0, tstr1);
+    temp = fs_add_dir_entry(temp, curr_dir.inum, 0, tstr2);
+    if (temp.isvalid == 0)
+    {
+        printf("Error creating new directory\n");
+        return 0;
+    }
     new_dir = temp;
 
-    temp = fs_add_dir_entry(curr_dir,new_dir.inum,0,new_dir.name);
-    if(temp.isvalid == 0){printf("Error adding new directory\n"); return false;}
+    temp = fs_add_dir_entry(curr_dir, new_dir.inum, 0, new_dir.name);
+    if (temp.isvalid == 0)
+    {
+        printf("Error adding new directory\n");
+        return 0;
+    }
     curr_dir = temp;
 
     fs_write_dir_back(new_dir);
@@ -840,7 +852,8 @@ int fs_mkdir(char name[NAMESIZE])
     return 1;
 }
 
-int fs_cd(char name[NAMESIZE]) {
+int fs_cd(char name[NAMESIZE])
+{
     if (bitmap == NULL)
     {
         printf("No disk mounted, please mount first\n");
@@ -848,18 +861,23 @@ int fs_cd(char name[NAMESIZE]) {
     }
 
     int offset = fs_dir_lookup(curr_dir, name);
-    if ((offset == -1) || (curr_dir.table[offset].type == 1)) {
+    if ((offset == -1) || (curr_dir.table[offset].type == 1))
+    {
         printf("No such directory\n");
         return -1;
     }
 
     struct fs_directory temp = fs_read_dir_from_offset(offset);
-    if(temp.isvalid == 0) {return -1;}
+    if (temp.isvalid == 0)
+    {
+        return -1;
+    }
     curr_dir = temp;
     return 1;
 }
 
-struct fs_directory rmdir_helper(struct fs_directory parent, char name[]) {
+struct fs_directory rmdir_helper(struct fs_directory parent, char name[])
+{
     struct fs_directory dir, temp;
     int inum, blk_idx, blk_off;
     union fs_block blk, zero;
@@ -872,7 +890,11 @@ struct fs_directory rmdir_helper(struct fs_directory parent, char name[]) {
     }
 
     int offset = fs_dir_lookup(parent, name);
-    if (offset == -1) {dir.isvalid = 0; return dir;}
+    if (offset == -1)
+    {
+        dir.isvalid = 0;
+        return dir;
+    }
 
     inum = parent.table[offset].inum;
     blk_idx = inum / DIR_PER_BLOCK;
@@ -880,14 +902,25 @@ struct fs_directory rmdir_helper(struct fs_directory parent, char name[]) {
     disk_read(zero.super.nblocks - 1 - blk_idx, blk.data);
 
     dir = blk.directories[blk_off];
-    if (dir.isvalid == 0) {return dir;}
+    if (dir.isvalid == 0)
+    {
+        return dir;
+    }
 
-    if (streq(dir.name, curr_dir.name)) {printf("Current Directory cannot be removed.\n"); dir.isvalid=0; return dir;}
+    if (streq(dir.name, curr_dir.name))
+    {
+        printf("Current Directory cannot be removed.\n");
+        dir.isvalid = 0;
+        return dir;
+    }
 
-    for (int ii=0; ii<ENTRIES_PER_DIR; ii++) {
-        if ((ii<1)&&(dir.table[ii].isvalid == 1)) {
+    for (int ii = 0; ii < ENTRIES_PER_DIR; ii++)
+    {
+        if ((ii > 1) && (dir.table[ii].isvalid == 1))
+        {
             temp = rm_helper(dir, dir.table[ii].name);
-            if(temp.isvalid == 0) return temp;
+            if (temp.isvalid == 0)
+                return temp;
             dir = temp;
         }
         dir.table[ii].isvalid = 0;
@@ -906,7 +939,8 @@ struct fs_directory rmdir_helper(struct fs_directory parent, char name[]) {
     return parent;
 }
 
-struct fs_directory rm_helper(struct fs_directory dir, char name[]) {
+struct fs_directory rm_helper(struct fs_directory dir, char name[])
+{
     if (bitmap == NULL)
     {
         printf("No disk mounted, please mount first\n");
@@ -914,14 +948,25 @@ struct fs_directory rm_helper(struct fs_directory dir, char name[]) {
         return dir;
     }
     int offset = fs_dir_lookup(dir, name);
-    if(offset == -1){printf("No such file/directory\n"); dir.isvalid=0; return dir;}
+    if (offset == -1)
+    {
+        printf("No such file/directory\n");
+        dir.isvalid = 0;
+        return dir;
+    }
 
-    if(dir.table[offset].type == 0) {
+    if (dir.table[offset].type == 0)
+    {
         return rmdir_helper(dir, name);
     }
     int inum = dir.table[offset].inum;
-    printf("%u\n",inum);
-    if(!fs_delete(inum)){printf("Failed to remove Inode\n"); dir.isvalid = 0; return dir;}
+    printf("%u\n", inum);
+    if (!fs_delete(inum))
+    {
+        printf("Failed to remove Inode\n");
+        dir.isvalid = 0;
+        return dir;
+    }
 
     dir.table[offset].isvalid = 0;
 
@@ -930,10 +975,198 @@ struct fs_directory rm_helper(struct fs_directory dir, char name[]) {
     return dir;
 }
 
-int fs_rmdir(char name[NAMESIZE]) {
+int fs_rmdir(char name[NAMESIZE])
+{
     struct fs_directory temp = rmdir_helper(curr_dir, name);
-    if (temp.isvalid == 0) {
+    if (temp.isvalid == 0)
+    {
+        curr_dir = temp;
         return 1;
     }
-    return -1;
+    return 0;
+}
+
+int fs_rm(char name[])
+{
+    struct fs_directory temp = rm_helper(curr_dir, name);
+    if (temp.isvalid == 1)
+    {
+        curr_dir = temp;
+        return 1;
+    }
+    return 0;
+}
+
+int copyin(const char *path, char name[])
+{
+    if (bitmap == NULL)
+    {
+        printf("No disk mounted, please mount first\n");
+        return 0;
+    }
+
+    fs_touch(name);
+    int offset = fs_dir_lookup(curr_dir, name);
+    if (offset == -1)
+    {
+        return 0;
+    }
+
+    if (curr_dir.table[offset].type == 0)
+    {
+        return 0;
+    }
+
+    uint32_t inum = curr_dir.table[offset].inum;
+    FILE *file;
+    file = fopen(path, "r");
+    if (!file)
+    {
+        fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
+        return 0;
+    }
+
+    char buffer[4 * BUFSIZ] = {0};
+    offset = 0;
+    while (1)
+    {
+        int result = fread(buffer, 1, sizeof(buffer), file);
+        if (result <= 0)
+        {
+            break;
+        }
+
+        int actual = fs_write(inum, buffer, result, offset);
+        if (actual < 0)
+        {
+            fprintf(stderr, "fs.write returned invalid result %d\n", actual);
+            break;
+        }
+
+        offset += actual;
+        if (actual != result)
+        {
+            fprintf(stderr, "fs.write only wrote %d bytes, not %d bytes\n", actual, result);
+            break;
+        }
+    }
+
+    printf("%d bytes copied\n", offset);
+    fclose(file);
+    return 1;
+}
+
+int copyout(char name[], const char *path)
+{
+    if (bitmap == NULL)
+    {
+        printf("No disk mounted, please mount first\n");
+        return 0;
+    }
+
+    int offset = fs_dir_lookup(curr_dir, name);
+    if (offset == -1)
+    {
+        return 0;
+    }
+
+    if (curr_dir.table[offset].type == 0)
+    {
+        return 0;
+    }
+
+    uint32_t inum = curr_dir.table[offset].inum;
+
+    FILE *file = fopen(path, "w");
+    if (!file)
+    {
+        fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
+        return 0;
+    }
+
+    char buffer[4 * BUFSIZ] = {0};
+    offset = 0;
+    while (1)
+    {
+        int result = fs_read(inum, buffer, sizeof(buffer), offset);
+        if (result <= 0)
+        {
+            break;
+        }
+        fwrite(buffer, 1, result, file);
+        offset += result;
+    }
+
+    printf("%d bytes copied\n", offset);
+    fclose(file);
+    return 1;
+}
+
+int do_copyin(const char *filename, int inumber)
+{
+    FILE *file;
+    int offset = 0, result, actual;
+    char buffer[16384];
+
+    file = fopen(filename, "r");
+    if (!file)
+    {
+        printf("couldn't open %s: %s\n", filename, strerror(errno));
+        return 0;
+    }
+
+    while (1)
+    {
+        result = (int)fread(buffer, 1, sizeof(buffer), file);
+        if (result <= 0)
+            break;
+        if (result > 0)
+        {
+            actual = fs_write(inumber, buffer, result, offset);
+            if (actual < 0)
+            {
+                printf("ERROR: fs_write return invalid result %d\n", actual);
+                break;
+            }
+            offset += actual;
+            if (actual != result)
+            {
+                printf("WARNING: fs_write only wrote %d bytes, not %d bytes\n", actual, result);
+                break;
+            }
+        }
+    }
+
+    printf("%d bytes copied\n", offset);
+
+    fclose(file);
+    return 1;
+}
+
+int do_copyout(int inumber, const char *filename)
+{
+    FILE *file;
+    int offset = 0, result;
+    char buffer[16384];
+
+    file = fopen(filename, "w");
+    if (!file)
+    {
+        printf("couldn't open %s: %s\n", filename, strerror(errno));
+        return 0;
+    }
+
+    while (1)
+    {
+        result = fs_read(inumber, buffer, sizeof(buffer), offset);
+        if (result <= 0)
+            break;
+        fwrite(buffer, 1, result, file);
+        offset += result;
+    }
+
+    printf("\n%d bytes copied\n", offset);
+
+    fclose(file);
+    return 1;
 }

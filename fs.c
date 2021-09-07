@@ -1,70 +1,7 @@
 #include "fs.h"
-#include "disk.h"
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <math.h>
-
-#define streq(a, b) (strcmp((a), (b)) == 0)
-
-#define FS_MAGIC 0xf0f03410
-#define INODES_PER_BLOCK 128
-#define POINTERS_PER_INODE 5
-#define POINTERS_PER_BLOCK 1024
-
-#define NAMESIZE 16       // Max Name size for files/directories
-#define ENTRIES_PER_DIR 7 // Number of Files/Directory entries within a Directory
-#define DIR_PER_BLOCK 8   // Number of Directories per 4KB block
-#define BLOCKS 10         // Number of blocks
 
 int *bitmap = NULL;
 int bitmap_size;
-
-struct fs_superblock
-{
-    int magic;
-    int nblocks;
-    int ninodeblocks;
-    int ninodes;
-    int ndirblocks;
-};
-
-struct fs_dirent
-{
-    int type;
-    int isvalid;
-    int inum;
-    char name[NAMESIZE];
-};
-
-struct fs_directory
-{
-    int isvalid;
-    int inum;
-    char name[NAMESIZE];
-    struct fs_dirent table[ENTRIES_PER_DIR];
-};
-
-struct fs_inode
-{
-    int isvalid;
-    int size;
-    int direct[POINTERS_PER_INODE];
-    int indirect;
-};
-
-union fs_block
-{
-    struct fs_superblock super;
-    struct fs_inode inode[INODES_PER_BLOCK];
-    int pointers[POINTERS_PER_BLOCK];
-    char data[DISK_BLOCK_SIZE];
-    struct fs_directory directories[DIR_PER_BLOCK];
-};
 
 // Internal member variables
 int free_block[BLOCKS];

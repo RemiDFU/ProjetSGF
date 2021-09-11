@@ -1,6 +1,6 @@
 GCC=/usr/bin/gcc
 
-simplefs: shell.o fs.o disk.o
+all: shell.o fs.o disk.o
 	$(GCC) shell.o fs.o disk.o -o simplefs
 
 shell.o: shell.c

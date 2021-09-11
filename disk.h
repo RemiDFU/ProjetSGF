@@ -1,12 +1,23 @@
 #ifndef DISK_H
 #define DISK_H
 
-#define DISK_BLOCK_SIZE 4096
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
 
-int  disk_init( const char *filename, int nblocks );
-int  disk_size();
-void disk_read( int blocknum, char *data );
-void disk_write( int blocknum, const char *data );
+#define BLOCK_SIZE 4096
+
+int disk_init(const char *path, int blocks);
+
+int disk_size();
+
+void disk_read(int blocknum, char *data);
+
+void disk_write(int blocknum, const char *data);
+
 void disk_close();
 
 
